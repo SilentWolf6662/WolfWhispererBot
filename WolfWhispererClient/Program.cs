@@ -30,6 +30,7 @@ namespace WolfWhispererClient
                 }))
                 .AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()))
                 .AddSingleton<InteractionService>()
+                .AddSingleton<InteractionHandler>()
                 .AddSingleton(x => new CommandService())
                 .AddSingleton<PrefixHandler>()
                 )
@@ -42,21 +43,20 @@ namespace WolfWhispererClient
             using IServiceScope serviceScope = host.Services.CreateScope();
             IServiceProvider provider = serviceScope.ServiceProvider;
             
-            var commands = provider.GetRequiredService<InteractionService>();
             var _client = provider.GetRequiredService<DiscordSocketClient>();
-            var config = provider.GetRequiredService<IConfigurationRoot>();
-
+            var sCommands = provider.GetRequiredService<InteractionService>();
             await provider.GetRequiredService<InteractionHandler>().InitializeAsync();
-
-            var prefixCommands = provider.GetRequiredService<PrefixHandler>();
-            prefixCommands.AddModule<Modules.PrefixModule>();
-            await prefixCommands.InitializeAsync();
+            var config = provider.GetRequiredService<IConfigurationRoot>();
+            var pCommands = provider.GetRequiredService<PrefixHandler>();
+            pCommands.AddModule<Modules.PrefixModule>();
+            await pCommands.InitializeAsync();
 
             _client.Log += async(LogMessage msg) => { Console.WriteLine(msg.Message); };
-
+            sCommands.Log += async(LogMessage msg) => { Console.WriteLine(msg.Message); };
+            
             _client.Ready += async () =>
             {
-                Console.WriteLine("Bot Ready");
+                await sCommands.RegisterCommandsToGuildAsync(ulong.Parse(config["testGuild"]));
             };
 
             string token = File.ReadAllText("token.txt");

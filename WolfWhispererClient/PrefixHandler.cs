@@ -12,6 +12,7 @@
 // 
 // ******************************************************************************************************************
 #endregion
+using System.Diagnostics;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
@@ -42,19 +43,28 @@ namespace WolfWhispererClient
 
 		private async Task HandleCommandAsync(SocketMessage messageParam)
 		{
-			var message = messageParam as SocketUserMessage;
-			if (message == null) return;
+			try
+			{
+				var message = messageParam as SocketUserMessage;
+				if (message == null) return;
 
-			int argPos = 0;
+				int argPos = 0;
 
-			if (!(message.HasCharPrefix(_config["prefix"][0], ref argPos)) || !message.HasMentionPrefix(_client.CurrentUser, ref argPos) || message.Author.IsBot) return;
+				char prefix = _config.GetValue("prefix", '!');
 
-			var context = new SocketCommandContext(_client, message);
+				if (!(message.HasCharPrefix(prefix, ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)) || message.Author.IsBot) return;
 
-			await _commands.ExecuteAsync(
-				context: context, 
-				argPos: argPos, 
-				services: null);
+				var context = new SocketCommandContext(_client, message);
+
+				await _commands.ExecuteAsync(
+					context: context, 
+					argPos: argPos, 
+					services: null);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"{ex.Message}\n{ex.StackTrace}");
+			}
 		}
 	}
 }
