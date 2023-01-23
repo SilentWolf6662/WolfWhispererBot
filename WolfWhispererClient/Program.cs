@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using Discord;
+using Discord.Commands;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
@@ -27,7 +28,12 @@ namespace WolfWhispererClient
                     GatewayIntents = Discord.GatewayIntents.AllUnprivileged,
                     AlwaysDownloadUsers = true,
                 }))
-                .AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()))).Build();
+                .AddSingleton(x => new InteractionService(x.GetRequiredService<DiscordSocketClient>()))
+                .AddSingleton<InteractionService>()
+                .AddSingleton(x => new CommandService())
+                .AddSingleton<PrefixHandler>()
+                )
+                .Build();
 
             await RunAsync(host);
         }
@@ -35,8 +41,16 @@ namespace WolfWhispererClient
         {
             using IServiceScope serviceScope = host.Services.CreateScope();
             IServiceProvider provider = serviceScope.ServiceProvider;
-
+            
+            var commands = provider.GetRequiredService<InteractionService>();
             var _client = provider.GetRequiredService<DiscordSocketClient>();
+            var config = provider.GetRequiredService<IConfigurationRoot>();
+
+            await provider.GetRequiredService<InteractionHandler>().InitializeAsync();
+
+            var prefixCommands = provider.GetRequiredService<PrefixHandler>();
+            prefixCommands.AddModule<Modules.PrefixModule>();
+            await prefixCommands.InitializeAsync();
 
             _client.Log += async(LogMessage msg) => { Console.WriteLine(msg.Message); };
 
